@@ -19,7 +19,7 @@ $RECYCLE.BIN/
 
 # Python
 .ipynb_checkpoints
-.pyc
+*.pyc
 
 # =========================
 # Operating System Files
