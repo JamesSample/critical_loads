@@ -12,18 +12,19 @@ def reclassify_raster(in_tif, out_tif, reclass_df, reclass_col, ndv):
     src_ds = gdal.Open(in_tif, GA_ReadOnly)
     assert(src_ds)
     rb = src_ds.GetRasterBand(1)
-    data = rb.ReadAsArray()
+    src_data = rb.ReadAsArray()
     
     # Reclassify
+    rc_data = src_data.copy()
     for idx, row in reclass_df.iterrows():
-        data[data==idx] = row[reclass_col]
+        rc_data[src_data==idx] = row[reclass_col]
 
     # Write output
     driver = gdal.GetDriverByName('GTiff')
     dst_ds = driver.CreateCopy(out_tif, src_ds, 0)
     out_band = dst_ds.GetRasterBand(1)
     out_band.SetNoDataValue(ndv)
-    out_band.WriteArray(data)
+    out_band.WriteArray(rc_data)
 
     # Flush data and close datasets
     dst_ds = None
@@ -154,3 +155,159 @@ def write_geotiff(data, out_tif, snap_tif, ndv, data_type):
     snap_ras = None
     out_band = None
     out_ras = None
+    
+def exceed_ns_icpm(cln_min, cln_max, cls_min, cls_max, dep_n, dep_s):
+    """ Calculates exceedances based on the methodology outlined by Max
+        Posch in the ICP Mapping manual (section VII.4):
+        
+        http://www.rivm.nl/media/documenten/cce/manual/binnenop17Juni/Ch7-MapMan-2016-04-26_vf.pdf
+        
+        NB: All units should be in eq/l.
+        
+    Args:
+        cln_min: Float. Parameter to define "critical load function" (see PDF)
+        cln_max: Float. Parameter to define "critical load function" (see PDF)
+        cls_min: Float. Parameter to define "critical load function" (see PDF)
+        cls_max: Float. Parameter to define "critical load function" (see PDF)
+        dep_n:   Float. Total N deposition
+        dep_s:   Float. Total (non-marine) S deposition
+        
+    Returns:
+        Tuple (ex_n, ex_s, reg_id)
+        
+        ex_n and ex_s are the exceedances for N and S depositions dep_n and dep_s
+        and the CLF defined by (cln_min, cls_max) and (cln_max, cls_min). The 
+        overall exceedance is (ex_n + ex_s). 
+        
+        reg_id is an integer region ID, as defined in Figure VII.3 of the PDF.
+    """
+    # Check inputs
+    assert (dep_n >= 0) and (dep_s >= 0), 'Deposition cannot be negative.'
+    
+    # Make sure floats
+    cln_min = float(cln_min)
+    cln_max = float(cln_max)
+    cls_min = float(cls_min)
+    cls_max = float(cls_max)
+    dep_n = float(dep_n)
+    dep_s = float(dep_s)    
+    
+    # Handle edge cases
+    # CLF pars < 0
+    if (cln_min < 0) or (cln_max < 0) or (cls_min <0) or (cls_max < 0):
+        # Pars not valid
+        return (-1, -1, -1)
+    
+    # CL = 0
+    if (cls_max == 0) and (cln_max == 0):
+        # All dep is above CL
+        return (dep_n, dep_s, 9)
+    
+    # Otherwise, we're somewhere on Fig. VII.3
+    dn = cln_min - cln_max
+    ds = cls_max - cls_min
+    
+    if ((dep_s <= cls_max) and (dep_n <= cln_max) and
+        ((dep_n - cln_max)*ds <= (dep_s - cls_min)*dn)):
+        # Non-exceedance
+        return (0, 0, 0)
+    
+    elif (dep_s <= cls_min):
+        # Region 1
+        ex_s = 0
+        ex_n = dep_n - cln_max
+        
+        return (ex_n, ex_s, 1)
+
+    elif (dep_n <= cln_min):
+        # Region 5
+        ex_s = dep_s - cls_max
+        ex_n = 0
+        
+        return (ex_n, ex_s, 5)        
+
+    elif (-(dep_n - cln_max)*dn >= (dep_s - cls_min)*ds):
+        # Region 2
+        ex_n = dep_n - cln_max
+        ex_s = dep_s - cls_min
+        
+        return (ex_n, ex_s, 2)         
+           
+    elif (-(dep_n - cln_min)*dn <= (dep_s - cls_max)*ds):
+        # Region 4
+        ex_n = dep_n - cln_min
+        ex_s = dep_s - cls_max
+        
+        return (ex_n, ex_s, 4)
+    
+    else:
+        # Region 3
+        dd = dn**2 + ds**2
+        s = dep_n*dn + dep_s*ds
+        v = cln_max*ds - cls_min*dn
+        xf = (dn*s + ds*v)/dd
+        yf = (ds*s - dn*v)/dd
+        ex_n = dep_n - xf
+        ex_s = dep_s - yf  
+        
+        return (ex_n, ex_s, 3)
+    
+def plot_critical_loads_func(cln_min, cln_max, cls_min, cls_max, ndeps, sdeps):
+    """ Plots the critical load function, as defined in section VII.4 here:
+    
+        http://www.rivm.nl/media/documenten/cce/manual/binnenop17Juni/Ch7-MapMan-2016-04-26_vf.pdf
+        
+    Args:
+        cln_min: Float. Parameter to define "critical load function" (see PDF)
+        cln_max: Float. Parameter to define "critical load function" (see PDF)
+        cls_min: Float. Parameter to define "critical load function" (see PDF)
+        cls_max: Float. Parameter to define "critical load function" (see PDF)
+        ndeps:   Array like. List of x-coords for points
+        sdeps:   Array like. List of x-coords for points
+        
+    Returns:
+        None
+    """
+    import matplotlib.pyplot as plt
+    import seaborn as sn
+    sn.set_context('poster')
+
+    # Make sure floats
+    cln_min = float(cln_min)
+    cln_max = float(cln_max)
+    cls_min = float(cls_min)
+    cls_max = float(cls_max)
+    
+    # Plot
+    fig = plt.figure(figsize=(8,8))
+    
+    # Get max extent for maintaining aspect
+    max_ext = 1.5*max(cln_max, cls_max)
+    
+    # CLF
+    plt.plot([0, cln_min], [cls_max, cls_max], 'k-')
+    plt.plot([cln_max, cln_max], [0, cls_min], 'k-') 
+    plt.plot([cln_min, cln_max], [cls_max, cls_min], 'k-')
+    
+    # Regions 1 and 5
+    plt.plot([cln_min, cln_min], [cls_max, max_ext], 'k--')
+    plt.plot([cln_max, max_ext], [cls_min, cls_min], 'k--')
+    
+    # Regions 2, 3 and 4
+    grad = (cls_min - cls_max)/(cln_max - cln_min)
+    perp = -1/grad
+    
+    plt.plot([cln_min, max_ext], 
+             [cls_max, perp*max_ext + cls_max - perp*cln_min], 'k--')
+    
+    plt.plot([cln_max, max_ext], 
+             [cls_min, perp*max_ext + cls_min - perp*cln_max], 'k--')
+    
+    # Points
+    plt.plot(ndeps, sdeps, 'ro')
+    
+    # Tidy
+    plt.xlim((0, max_ext))
+    plt.ylim((0, max_ext))
+    plt.xlabel('$N_{dep}$', fontsize=26)
+    plt.ylabel('$S_{dep}$', fontsize=26)
