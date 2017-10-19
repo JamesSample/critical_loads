@@ -252,18 +252,22 @@ def exceed_ns_icpm(cln_min, cln_max, cls_min, cls_max, dep_n, dep_s):
         
         return (ex_n, ex_s, 3)
     
-def plot_critical_loads_func(cln_min, cln_max, cls_min, cls_max, ndeps, sdeps):
+def plot_critical_loads_func(cln_min, cln_max, cls_min, cls_max, ndeps, sdeps,
+                             title=None, save_png=False, png_path=None):
     """ Plots the critical load function, as defined in section VII.4 here:
     
         http://www.rivm.nl/media/documenten/cce/manual/binnenop17Juni/Ch7-MapMan-2016-04-26_vf.pdf
         
     Args:
-        cln_min: Float. Parameter to define "critical load function" (see PDF)
-        cln_max: Float. Parameter to define "critical load function" (see PDF)
-        cls_min: Float. Parameter to define "critical load function" (see PDF)
-        cls_max: Float. Parameter to define "critical load function" (see PDF)
-        ndeps:   Array like. List of x-coords for points
-        sdeps:   Array like. List of x-coords for points
+        cln_min:  Float. Parameter to define "critical load function" (see PDF)
+        cln_max:  Float. Parameter to define "critical load function" (see PDF)
+        cls_min:  Float. Parameter to define "critical load function" (see PDF)
+        cls_max:  Float. Parameter to define "critical load function" (see PDF)
+        ndeps:    Array like. List of x-coords for points
+        sdeps:    Array like. List of x-coords for points
+        title:    Str. Plot title, if desired
+        save_png: Bool. Whether to save plot as PNG
+        png_path: Raw str. Output path (if save_png=True)
         
     Returns:
         None
@@ -282,7 +286,8 @@ def plot_critical_loads_func(cln_min, cln_max, cls_min, cls_max, ndeps, sdeps):
     fig = plt.figure(figsize=(8,8))
     
     # Get max extent for maintaining aspect
-    max_ext = 1.5*max(cln_max, cls_max)
+    all_vals = [cln_max, cls_max] + ndeps + sdeps
+    max_ext = 1.2*max(all_vals)
     
     # CLF
     plt.plot([0, cln_min], [cls_max, cls_max], 'k-')
@@ -294,8 +299,11 @@ def plot_critical_loads_func(cln_min, cln_max, cls_min, cls_max, ndeps, sdeps):
     plt.plot([cln_max, max_ext], [cls_min, cls_min], 'k--')
     
     # Regions 2, 3 and 4
-    grad = (cls_min - cls_max)/(cln_max - cln_min)
-    perp = -1/grad
+    if (cln_max - cln_min) == 0:
+        perp = 0
+    else:
+        grad = (cls_min - cls_max)/(cln_max - cln_min)
+        perp = -1/grad
     
     plt.plot([cln_min, max_ext], 
              [cls_max, perp*max_ext + cls_max - perp*cln_min], 'k--')
@@ -311,3 +319,9 @@ def plot_critical_loads_func(cln_min, cln_max, cls_min, cls_max, ndeps, sdeps):
     plt.ylim((0, max_ext))
     plt.xlabel('$N_{dep}$', fontsize=26)
     plt.ylabel('$S_{dep}$', fontsize=26)
+    if title:
+        plt.title(title)
+        
+    # Save
+    if save_png:
+        plt.savefig(png_path, dpi=200)
