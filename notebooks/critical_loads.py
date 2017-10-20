@@ -1,7 +1,9 @@
-def reclassify_raster(in_tif, out_tif, reclass_df, reclass_col, ndv):
+def reclassify_raster(in_tif, mask_tif, out_tif, reclass_df, reclass_col, ndv):
     """ Reclassify categorical values in a raster using a mapping
         in a dataframe. The dataframe index must contain the classes
         in in_tif and the 'reclass_col' must specify the new classes.
+        
+        Only cells with value=1 in mask_tif are written to output.
     """
     from osgeo import gdal, ogr
     from osgeo.gdalconst import GA_ReadOnly as GA_ReadOnly
@@ -13,12 +15,21 @@ def reclassify_raster(in_tif, out_tif, reclass_df, reclass_col, ndv):
     assert(src_ds)
     rb = src_ds.GetRasterBand(1)
     src_data = rb.ReadAsArray()
+
+    # Open mask, read data
+    mask_ds = gdal.Open(mask_tif, GA_ReadOnly)
+    assert(mask_ds)
+    mb = mask_ds.GetRasterBand(1)
+    mask_data = mb.ReadAsArray()
     
     # Reclassify
     rc_data = src_data.copy()
     for idx, row in reclass_df.iterrows():
         rc_data[src_data==idx] = row[reclass_col]
 
+    # Apply mask
+    rc_data[mask_data!=1] = ndv
+    
     # Write output
     driver = gdal.GetDriverByName('GTiff')
     dst_ds = driver.CreateCopy(out_tif, src_ds, 0)
@@ -29,6 +40,7 @@ def reclassify_raster(in_tif, out_tif, reclass_df, reclass_col, ndv):
     # Flush data and close datasets
     dst_ds = None
     src_ds = None
+    mask_ds = None
     
 def vec_to_ras(in_shp, out_tif, snap_tif, attrib, ndv, data_type,
                fmt='GTiff'):
