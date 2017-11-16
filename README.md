@@ -6,8 +6,14 @@ In Norway, exceedances of critical loads are estimated every four years by [NIVA
 
 ## Workflow
 
- 1. **[Exceedance of critical loads for vegetation](http://nbviewer.jupyter.org/github/JamesSample/critical_loads/blob/master/notebooks/critical_loads_vegetation.ipynb)**. A raster-based workflow for the vegetation calculations
+The workflow requires estimating exceedances for **vegetation**, **water** and **soil**. All the calculations using the new methodology are presented in this notebook:
+
+ * **[Exceedance of critical loads for vegetation, water and soil](http://nbviewer.jupyter.org/github/JamesSample/critical_loads/blob/master/notebooks/critical_loads_workflow.ipynb)**
  
- 2. **[Exceedance of critical loads for water](http://nbviewer.jupyter.org/github/JamesSample/critical_loads/blob/master/notebooks/critical_loads_water.ipynb)**. Exceedances for water are calculated using two models: SSWC and FAB. This notebook describes a new approach for the FAB calculations and compares results from the previous methodology (for both models) with the new output
+Further details are provided in the following "development" notebooks:
+
+ 1. **[Exceedance of critical loads for vegetation](http://nbviewer.jupyter.org/github/JamesSample/critical_loads/blob/master/notebooks/critical_loads_vegetation.ipynb)**. Developing a raster-based workflow for the vegetation calculations
+ 
+ 2. **[Exceedance of critical loads for water](http://nbviewer.jupyter.org/github/JamesSample/critical_loads/blob/master/notebooks/critical_loads_water.ipynb)**. Exceedances for water are calculated using two models: SSWC and FAB. This notebook develops a new approach for the FAB calculations and compares the results from the previous methodology (for both models) with the new output
  
  3. **[Interactive map of exceedances for water (2007 to 2011)](https://fusiontables.googleusercontent.com/embedviz?q=select+col6+from+1FJbAbZ-fB6UcDGABLkv5TKHljKmGTHGRLEukTI9R&viz=MAP&h=false&lat=61.63863460204371&lng=9.56805419921875&t=1&z=6&l=col6&y=2&tmplt=2&hml=KML)**. Results are based on the updated methodology for the FAB model. Clicking on any grid cell on the map will display summary information, including the "critical load function", which is described in detail [here](http://www.rivm.nl/media/documenten/cce/manual/binnenop17Juni/Ch7-MapMan-2016-04-26_vf.pdf)
