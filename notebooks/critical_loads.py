@@ -263,7 +263,115 @@ def exceed_ns_icpm(cln_min, cln_max, cls_min, cls_max, dep_n, dep_s):
         ex_s = dep_s - yf  
         
         return (ex_n, ex_s, 3)
+
+def vectorised_exceed_ns_icpm(cln_min, cln_max, cls_min, cls_max, dep_n, dep_s):
+    """ Vectorised version of exceed_ns_icpm(). Calculates exceedances based on 
+        the methodology outlined by Max Posch in the ICP Mapping manual (section 
+        VII.4):
+        
+        http://www.rivm.nl/media/documenten/cce/manual/binnenop17Juni/Ch7-MapMan-2016-04-26_vf.pdf
+        
+        NB: All units should be in eq/l.
+        
+    Args:
+        cln_min: Float array. Parameter to define "critical load function" (see PDF)
+        cln_max: Float array. Parameter to define "critical load function" (see PDF)
+        cls_min: Float array. Parameter to define "critical load function" (see PDF)
+        cls_max: Float array. Parameter to define "critical load function" (see PDF)
+        dep_n:   Float array. Total N deposition
+        dep_s:   Float array. Total (non-marine) S deposition
+        
+    Returns:
+        Tuple of arrays (ex_n, ex_s, reg_id)
+        
+        ex_n and ex_s are the exceedances for N and S depositions dep_n and dep_s
+        and the CLF defined by (cln_min, cls_max) and (cln_max, cls_min). The 
+        overall exceedance is (ex_n + ex_s). 
+        
+        reg_id is an integer array of region IDs, as defined in Figure VII.3 of the PDF.
+    """
+    import numpy as np
     
+    # Create NaN arrays for output with correct dimensions
+    ex_n = np.full(shape=dep_s.shape, fill_value=np.nan)
+    ex_s = np.full(shape=dep_s.shape, fill_value=np.nan)
+    reg_id = np.full(shape=dep_s.shape, fill_value=np.nan)
+
+    # Handle edge cases
+    # CLF pars < 0
+    mask = ((cln_min < 0) | (cln_max < 0) | (cls_min < 0) | (cls_max < 0))
+    ex_n[mask] = -1
+    ex_s[mask] = -1
+    reg_id[mask] = -1
+    edited = mask.copy() # Keep track of edited cells so we don't change them again
+                         # This is analagous to the original 'if' statement in
+                         # exceed_ns_icpm(), which requires the logic to be 
+                         # implemented in a specific order i.e. once a cell has been
+                         # edited we do not want to change it again (just like once
+                         # the 'if' evaluates to True, we don't proceed any further)        
+
+    # CL = 0
+    mask = ((cls_max == 0) & (cln_max == 0) & (edited == 0))
+    ex_n[mask] = dep_n[mask]
+    ex_s[mask] = dep_s[mask]
+    reg_id[mask] = 9
+    edited += mask
+
+    # Otherwise, we're somewhere on Fig. VII.3
+    dn = cln_min - cln_max
+    ds = cls_max - cls_min
+
+    # Non-exceedance
+    mask = ((dep_s <= cls_max) & (dep_n <= cln_max) &
+            ((dep_n - cln_max)*ds <= (dep_s - cls_min)*dn) &
+            (edited == 0))   
+    ex_n[mask] = 0
+    ex_s[mask] = 0
+    reg_id[mask] = 0
+    edited += mask
+
+    # Region 1
+    mask = ((dep_s <= cls_min) & (edited == 0))
+    ex_n[mask] = dep_n[mask] - cln_max[mask]
+    ex_s[mask] = 0
+    reg_id[mask] = 1
+    edited += mask
+
+    # Region 5
+    mask = ((dep_n <= cln_min) & (edited == 0))   
+    ex_s[mask] = dep_s[mask] - cls_max[mask]
+    ex_n[mask] = 0
+    reg_id[mask] = 5 
+    edited += mask
+
+    # Region 2
+    mask = ((-(dep_n - cln_max)*dn >= (dep_s - cls_min)*ds) & (edited == 0))
+    ex_n[mask] = dep_n[mask] - cln_max[mask]
+    ex_s[mask] = dep_s[mask] - cls_min[mask]
+    reg_id[mask] = 2
+    edited += mask
+
+    # Region 4
+    mask = ((-(dep_n - cln_min)*dn <= (dep_s - cls_max)*ds) & (edited == 0))
+    ex_n[mask] = dep_n[mask] - cln_min[mask]
+    ex_s[mask] = dep_s[mask] - cls_max[mask]
+    reg_id[mask] = 4
+    edited += mask
+
+    # Region 3 (anything not already edited)
+    dd = dn**2 + ds**2
+    s = dep_n*dn + dep_s*ds
+    v = cln_max*ds - cls_min*dn
+    xf = (dn*s + ds*v)/dd
+    yf = (ds*s - dn*v)/dd
+    ex_n[~edited] = dep_n[~edited] - xf[~edited]
+    ex_s[~edited] = dep_s[~edited] - yf[~edited]  
+    reg_id[~edited] = 3
+
+    del mask, edited, dd, s, v, xf, yf, dn, ds
+    
+    return (ex_n, ex_s, reg_id)
+
 def plot_critical_loads_func(cln_min, cln_max, cls_min, cls_max, ndeps, sdeps,
                              title=None, save_png=False, png_path=None):
     """ Plots the critical load function, as defined in section VII.4 here:
