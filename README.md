@@ -2,15 +2,19 @@
 
 Atmospheric deposition of nitrogen and sulphur play an important role in acidification. As part of the [UNECE Convention on Long-range Transboundary Air Pollution (LRTAP)](https://www.unece.org/env/lrtap/welcome.html), the [International Co-operative Programme (ICP) on Modelling and Mapping](http://www.icpmapping.org/) attempts to assess the extent and seriousness of air pollution effects, in part by estimating exceedances of "critical load" thresholds. 
 
-In Norway, exceedances of critical loads are estimated every four years by [NIVA](http://www.niva.no/), in collaboration with [NILU](http://www.nilu.no/) and [Met.no](https://www.met.no/). The code in this repository documents an updated workflow prepared at NIVA during 2017. 
+In Norway, exceedances of critical loads are estimated every four years by [NIVA](http://www.niva.no/), in collaboration with [NILU](http://www.nilu.no/) and [Met.no](https://www.met.no/). The code in this repository documents an updated workflow prepared by NIVA during 2017-18. 
 
 ## Workflow
 
-The workflow requires estimating exceedances for **vegetation**, **water** and **soil**. All the calculations using the new methodology are presented in this notebook:
+The workflow requires estimating exceedances for **vegetation**, **water** and **soil**. Calculations using the most recent, high-resolution datasets are described here:
 
- * **[Exceedance of critical loads for vegetation, water and soil](http://nbviewer.jupyter.org/github/JamesSample/critical_loads/blob/master/notebooks/critical_loads_workflow.ipynb)**
+ * **[Exceedance of critical loads for vegetation, water and soil (new method; new deposition grid)](http://nbviewer.jupyter.org/github/JamesSample/critical_loads/blob/master/notebooks/critical_loads_workflow_new_grid.ipynb)**
+
+Additionally, the new methodology has been applied to historic datasets (with lower spatial resolution) here:
+
+ * **[Exceedance of critical loads for vegetation, water and soil (new method; old deposition grid)](http://nbviewer.jupyter.org/github/JamesSample/critical_loads/blob/master/notebooks/critical_loads_workflow.ipynb)**
  
-Further details are provided in the following "development" notebooks:
+Further technical details are provided in the following "development" notebooks:
 
  1. **[Exceedance of critical loads for vegetation](http://nbviewer.jupyter.org/github/JamesSample/critical_loads/blob/master/notebooks/critical_loads_vegetation.ipynb)**. Developing a raster-based workflow for the vegetation calculations
  
