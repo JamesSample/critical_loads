@@ -10,6 +10,61 @@
 # Licence:     <your licence>
 #-------------------------------------------------------------------------------
 
+def view_dep_series(eng):
+    """ Create a new deposition series in the database.
+    
+    Args:
+        eng: Obj. Active database connection object
+        
+    Returns:
+        Query grid.
+    """
+    import pandas as pd
+    import nivapy3 as nivapy
+    
+    # Get existing series from db
+    sql = "SELECT * FROM deposition.dep_series_defs"
+    df = pd.read_sql(sql, eng)
+    ser_grid = nivapy.da.make_query_grid(df, editable=True)
+    
+    # Instructions
+    print("Click 'Add Row', then edit the last row in the table to reflect the new data you wish to upload.")
+    
+    return ser_grid
+
+def add_dep_series(qgrid, eng):
+    """ Inserts rows added using cl.view_dep_series() to the database.
+    
+    Args:
+        qgrid: Obj. Manually edited query grid table returned by 
+               cl.view_dep_series()
+        eng:   Obj. Active database connection object
+         
+    Returns:
+        DataFrame of rows added
+    """
+    import pandas as pd
+
+    # Get existing series from db
+    sql = "SELECT * FROM deposition.dep_series_defs"
+    df = pd.read_sql(sql, eng)
+    
+    # Get new rows to be added
+    df2 = qgrid.get_changed_df()
+    ids = df['series_id'].astype(list)
+    df2 = df2.query("series_id not in @ids")
+    
+    # Add to db
+    df2.to_sql('dep_series_defs', 
+               eng,
+               'deposition',
+               if_exists='append',
+               index=False)
+    
+    print('%s new row(s) added successfully.' % len(df2))
+    
+    return df2
+
 def upload_nilu_0_1deg_dep_data(data_fold, eng, series_id):
     """ Process .dat files containing deposition data supplied by NILU. This 
         function is based on the data supplied by NILU during 2017, which uses 
@@ -75,4 +130,7 @@ def upload_nilu_0_1deg_dep_data(data_fold, eng, series_id):
               if_exists='append', 
               index=False)
     
+    print ('%s new rows added successfully.' % len(df))
+    
     return df
+

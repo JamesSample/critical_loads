@@ -24,17 +24,19 @@ spec:
             cpu: 1.7
             memory: 5Gi
         env:
-        - name: ALLOW_IP_RANGE
-          value: 0.0.0.0/0
         - name: POSTGRES_USER
           value: postgres
         - name: POSTGRES_DB
           value: critical_loads
-        - name: POSTGRES_PASS
+        - name: POSTGRES_PASSWORD
           valueFrom:
             secretKeyRef:
               name: critical-loads
               key: dbpassword
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pg10 
+        - name: POSTGIS_GDAL_ENABLED_DRIVERS
+          value: ENABLE_ALL
         livenessProbe:
           exec:
             command:
